@@ -9714,7 +9714,6 @@ CPU_X86.prototype.exec = function(N_cycles) {
                 break;
             interrupt = null;
         } catch (cpu_exception) {
-            console.log(cpu_exception);
             if (cpu_exception.hasOwnProperty("intno")) { //an interrupt
                 interrupt = cpu_exception;
             } else {
