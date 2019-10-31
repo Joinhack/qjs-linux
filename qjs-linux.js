@@ -1,5 +1,5 @@
 import * as os from "os";
-import {puts} from "std";
+import * as std from "std";
 import {PCEmulator} from "PCEmulator.js";
 
 var pc, boot_start_time;
@@ -63,7 +63,8 @@ function str2ab(str) {
 }
 
 function serial_write(v) {
-    puts(v)
+    std.puts(v)
+    std.out.flush()
 }
 
 function start() {
