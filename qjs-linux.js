@@ -113,14 +113,16 @@ function start() {
 
 function term_start() {
     var len;
-    let blen = 1;
+    let blen = 16;
     let fp = os.open('/dev/tty', 4);
-    let buf = new ArrayBuffer(blen);
+    let buf = new Uint8Array(blen);
     let read_intern = function() {
-        len = os.read(fp, buf, 0, blen);
+        len = os.read(fp, buf.buffer, 0, blen);
         if (len > 0) {
-            let chrs = String.fromCharCode(new Uint8Array(buf, 0, len));
-            pc.serial.send_chars(chrs);
+            let chrs = new Array(len);
+            for (var i = 0; i < len; i++)
+                chrs[i] = String.fromCharCode(buf[i]);
+            pc.serial.send_chars(chrs.join(''));
         }
         os.setTimeout(read_intern, 300);    
     }
