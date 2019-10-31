@@ -111,8 +111,25 @@ function start() {
 }
 
 
+function term_start() {
+    var len;
+    let blen = 1;
+    let fp = os.open('/dev/tty', 4);
+    let buf = new ArrayBuffer(blen);
+    let read_intern = function() {
+        len = os.read(fp, buf, 0, blen);
+        if (len > 0) {
+            let chrs = String.fromCharCode(new Uint8Array(buf, 0, len));
+            pc.serial.send_chars(chrs);
+        }
+        os.setTimeout(read_intern, 300);    
+    }
+    read_intern();
+}
+
 function main() {
     load_binaries();
+    term_start();
 }
 
 main();

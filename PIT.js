@@ -1,5 +1,5 @@
 /*
-    QJS-Linux - used QickJS to run the JSLinux
+  QJS-Linux - used QickJS to run the JSLinux
   JSLinux-deobfuscated - An annotated version of the original JSLinux.
 
   Original is Copyright (c) 2011-2012 Fabrice Bellard
