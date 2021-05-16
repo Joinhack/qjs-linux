@@ -149,4 +149,3 @@ JSModuleDef *JS_INIT_MODULE(JSContext *ctx, const char *module_name)
     JS_AddModuleExportList(ctx, module_def, js_ext_funcs, ARRAYSIZE(js_ext_funcs));
     return module_def;
 }
-
