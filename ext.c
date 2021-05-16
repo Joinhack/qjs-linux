@@ -1,7 +1,32 @@
 #include <quickjs/quickjs.h>
 #include <poll.h>
+#include <fcntl.h>
 
 #define ARRAYSIZE(x) (sizeof(x)/sizeof(x[0]))
+
+static JSValue js_fnonblock(JSContext *ctx, JSValueConst this_val,
+                       int argc, JSValueConst *argv) 
+{
+    JSValue rs;
+    int ret, fd, flags;
+    if (argc < 1)
+        return JS_EXCEPTION;
+    
+    if (!JS_IsNumber(argv[0]))
+        return JS_EXCEPTION;
+    ret = JS_ToInt32(ctx, (int32_t*)&fd, argv[0]);
+    if (ret)
+        return JS_EXCEPTION;
+    flags = fcntl(fd, F_GETFL);
+    if (flags < 0)
+        return JS_EXCEPTION;
+    flags |= O_NONBLOCK;
+    ret = fcntl(fd, F_SETFL, flags);
+    if (ret < 0)
+        return JS_EXCEPTION;
+    rs = JS_NewInt32(ctx, ret);
+    return rs;
+}
 
 static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
                        int argc, JSValueConst *argv) 
@@ -61,11 +86,8 @@ static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
                 goto EXCEPTION;
             }
         }
-        
         max_len++;
-        
     EXCEPTION:
-        
         if (!JS_IsException(param)) {
             JS_FreeValue(ctx, param);
         } else {
@@ -104,6 +126,7 @@ static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
 
 static const JSCFunctionListEntry js_ext_funcs[] = {
     JS_CFUNC_DEF("poll", 1, js_poll),
+    JS_CFUNC_DEF("fnonblock", 1, js_fnonblock),
 };
 
 static int js_ext_init(JSContext *ctx, JSModuleDef *module_def) 

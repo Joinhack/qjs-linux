@@ -1,10 +1,11 @@
-import { poll } from "./ext.so";
+import { poll, fnonblock } from "./ext.so";
 import * as os from "os";
 
-const O_NONBLOCK = 4;
-let fp = os.open('/dev/stdin', O_NONBLOCK);
+let fp = os.open('/dev/tty');
+console.log("fnonblock:" + fnonblock(fp));
 
-let blen = 16;
+
+let blen = 1;
 let buf = new Uint8Array(blen);
 var len;
 for (let i = 0; i < 10000; i++) {
