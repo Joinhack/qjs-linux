@@ -8,6 +8,7 @@ static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
 {
     JSValue rs;
     int ret;
+    int except = 0;
     struct pollfd pollfds[64];
     if (argc != 2)
         return JS_EXCEPTION;
@@ -34,32 +35,54 @@ static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
 
     for (int i = 0; i < len; i++) {
         JSValue param = JS_GetPropertyUint32(ctx, argv[0], i);
-        JS_FreeValue(ctx, param);
+        JSValue fd_val = JS_EXCEPTION;
+        JSValue events_val = JS_EXCEPTION;
         if (JS_IsException(param)) {
-            return param;
+            goto EXCEPTION;
         }
-        JSValue fd_val = JS_GetPropertyStr(ctx, param, "fd");
+        fd_val = JS_GetPropertyStr(ctx, param, "fd");
         if (JS_IsException(fd_val)) {
-            return fd_val;
+            goto EXCEPTION;
         }
-        JSValue events_val = JS_GetPropertyStr(ctx, param, "events");
+        events_val = JS_GetPropertyStr(ctx, param, "events");
         if (JS_IsException(events_val)) {
-            return events_val;
+            goto EXCEPTION;
         }
         
         
         if (JS_IsNumber(fd_val)) {
-            if (JS_ToInt32(ctx, (int32_t*)&pollfds[i].fd, fd_val))
-                return JS_EXCEPTION;
-            JS_FreeValue(ctx, fd_val);
+            if (JS_ToInt32(ctx, (int32_t*)&pollfds[i].fd, fd_val)) {
+                goto EXCEPTION;
+            }
         }
 
         if (JS_IsNumber(events_val)) {
-            if (JS_ToInt32(ctx, (int32_t*)&pollfds[i].events, events_val))
-                return JS_EXCEPTION;
-            JS_FreeValue(ctx, events_val);
+            if (JS_ToInt32(ctx, (int32_t*)&pollfds[i].events, events_val)) {
+                goto EXCEPTION;
+            }
         }
+        
         max_len++;
+        
+    EXCEPTION:
+        
+        if (!JS_IsException(param)) {
+            JS_FreeValue(ctx, param);
+        } else {
+            except = 1;
+        }
+        if (!JS_IsException(fd_val)) {
+            JS_FreeValue(ctx, fd_val);
+        } else {
+            except = 1;
+        }
+        if (!JS_IsException(events_val)) {
+            JS_FreeValue(ctx, events_val);
+        } else {
+            except = 1;
+        }
+        if (except == 1)
+            return JS_EXCEPTION;
     }
 
     ret = poll(pollfds, max_len, timeout);
