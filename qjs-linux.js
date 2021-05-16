@@ -110,13 +110,15 @@ function start() {
     pc.start();
 }
 
+const O_NONBLOCK = 4;
 
 function term_start() {
     var len;
     let blen = 16;
-    let fp = os.open('/dev/tty', 4);
+    let fp = os.open('/dev/tty', O_NONBLOCK);
     let buf = new Uint8Array(blen);
     let read_intern = function() {
+        let param = {fd: fp, events:1};
         len = os.read(fp, buf.buffer, 0, blen);
         if (len > 0) {
             let chrs = new Array(len);
@@ -124,7 +126,7 @@ function term_start() {
                 chrs[i] = String.fromCharCode(buf[i]);
             pc.serial.send_chars(chrs.join(''));
         }
-        os.setTimeout(read_intern, 300);    
+        os.setTimeout(read_intern, 100);
     }
     read_intern();
 }
