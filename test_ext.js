@@ -2,7 +2,7 @@ import { poll, fnonblock } from "./ext.so";
 import * as os from "os";
 import * as std from "std";
 
-let fp = os.open('/dev/stdin');
+let fp = os.open('/dev/tty');
 console.log("fnonblock:" + fnonblock(fp));
 
 

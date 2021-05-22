@@ -5,8 +5,7 @@
 #define ARRAYSIZE(x) (sizeof(x)/sizeof(x[0]))
 
 static JSValue js_fnonblock(JSContext *ctx, JSValueConst this_val,
-                       int argc, JSValueConst *argv) 
-{
+                       int argc, JSValueConst *argv) {
     JSValue rs;
     int ret, fd, flags;
     if (argc < 1)
@@ -28,9 +27,30 @@ static JSValue js_fnonblock(JSContext *ctx, JSValueConst this_val,
     return rs;
 }
 
+class JSValueGuard {
+    JSValue &handle;
+    JSContext *ctx;
+public:
+    JSValueGuard(JSContext *ctx, JSValue &_handle): handle(_handle) {
+        this->ctx = ctx;
+    }
+    ~JSValueGuard() {
+        if (!IsException())
+            JS_FreeValue(ctx, handle);
+    }
+    inline bool IsException() {
+        return JS_IsException(handle);
+    }
+    inline bool IsNumber() {
+        return JS_IsNumber(handle);
+    }
+    JSValue& operator*() {
+        return handle;
+    }
+};
+
 static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
-                       int argc, JSValueConst *argv) 
-{
+                       int argc, JSValueConst *argv) {
     JSValue rs;
     int ret;
     int except = 0;
@@ -43,10 +63,11 @@ static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
     if (!JS_IsArray(ctx, argv[0]))
         return JS_EXCEPTION;
     rs = JS_GetPropertyStr(ctx, argv[0], "length");
-    if (JS_IsException(rs))
-        return rs;
+    JSValueGuard lenJSVal(ctx, rs);
+    if (lenJSVal.IsException())
+        return *lenJSVal;
     int len;
-    ret = JS_ToUint32(ctx, (uint32_t*)&len, rs);
+    ret = JS_ToUint32(ctx, (uint32_t*)&len, *lenJSVal);
     JS_FreeValue(ctx, rs);
     if (ret)
         return JS_EXCEPTION;
@@ -59,52 +80,35 @@ static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
         return JS_EXCEPTION;
 
     for (int i = 0; i < len; i++) {
-        JSValue param = JS_GetPropertyUint32(ctx, argv[0], i);
-        JSValue fd_val = JS_EXCEPTION;
+        JSValue _param = JS_GetPropertyUint32(ctx, argv[0], i);
+        JSValueGuard param(ctx, _param);
         JSValue events_val = JS_EXCEPTION;
-        if (JS_IsException(param)) {
-            goto EXCEPTION;
+        if (param.IsException()) {
+            return JS_EXCEPTION;
         }
-        fd_val = JS_GetPropertyStr(ctx, param, "fd");
-        if (JS_IsException(fd_val)) {
-            goto EXCEPTION;
+        JSValue _fdVal = JS_GetPropertyStr(ctx, *param, "fd");
+        JSValueGuard fdVal(ctx, _fdVal);
+        if (fdVal.IsException()) {
+            return JS_EXCEPTION;
         }
-        events_val = JS_GetPropertyStr(ctx, param, "events");
-        if (JS_IsException(events_val)) {
-            goto EXCEPTION;
+        JSValue _eventsVal = JS_GetPropertyStr(ctx, *param, "events");
+        JSValueGuard eventsVal(ctx, _eventsVal);
+        if (eventsVal.IsException()) {
+            return JS_EXCEPTION;
         }
         
-        
-        if (JS_IsNumber(fd_val)) {
-            if (JS_ToInt32(ctx, (int32_t*)&pollfds[i].fd, fd_val)) {
-                goto EXCEPTION;
+        if (fdVal.IsNumber()) {
+            if (JS_ToInt32(ctx, (int32_t*)&pollfds[i].fd, *fdVal)) {
+                return JS_EXCEPTION;
             }
         }
 
-        if (JS_IsNumber(events_val)) {
+        if (eventsVal.IsException()) {
             if (JS_ToInt32(ctx, (int32_t*)&pollfds[i].events, events_val)) {
-                goto EXCEPTION;
+                return JS_EXCEPTION;
             }
         }
         max_len++;
-    EXCEPTION:
-        if (!JS_IsException(param)) {
-            JS_FreeValue(ctx, param);
-        } else {
-            except = 1;
-        }
-        if (!JS_IsException(fd_val)) {
-            JS_FreeValue(ctx, fd_val);
-        } else {
-            except = 1;
-        }
-        if (!JS_IsException(events_val)) {
-            JS_FreeValue(ctx, events_val);
-        } else {
-            except = 1;
-        }
-        if (except == 1)
-            return JS_EXCEPTION;
     }
 
     ret = poll(pollfds, max_len, timeout);
@@ -134,18 +138,20 @@ static int js_ext_init(JSContext *ctx, JSModuleDef *module_def)
     return JS_SetModuleExportList(ctx, module_def, js_ext_funcs, ARRAYSIZE(js_ext_funcs));
 }
 
+extern "C" {
 #ifdef JS_SHARED_LIBRARY
 #define JS_INIT_MODULE js_init_module
 #else
 #define JS_INIT_MODULE js_init_module_ext
 #endif
 
-JSModuleDef *JS_INIT_MODULE(JSContext *ctx, const char *module_name) 
-{
+
+JSModuleDef *JS_INIT_MODULE(JSContext *ctx, const char *module_name) {
     JSModuleDef *module_def;
     module_def = JS_NewCModule(ctx, module_name, js_ext_init);
     if (!module_def)
         return NULL;
     JS_AddModuleExportList(ctx, module_def, js_ext_funcs, ARRAYSIZE(js_ext_funcs));
     return module_def;
+}
 }
