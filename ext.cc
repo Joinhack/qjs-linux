@@ -49,8 +49,10 @@ public:
     }
 };
 
-static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
-                       int argc, JSValueConst *argv) {
+static JSValue js_poll(JSContext *ctx, 
+                        JSValueConst this_val,
+                        int argc, 
+                        JSValueConst *argv) {
     JSValue rs;
     int ret;
     int except = 0;
@@ -60,15 +62,12 @@ static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
     if (!JS_IsArray(ctx, argv[0]))
         return JS_EXCEPTION;
     
-    if (!JS_IsArray(ctx, argv[0]))
-        return JS_EXCEPTION;
     rs = JS_GetPropertyStr(ctx, argv[0], "length");
     JSValueGuard lenJSVal(ctx, rs);
     if (lenJSVal.IsException())
         return *lenJSVal;
     int len;
     ret = JS_ToUint32(ctx, (uint32_t*)&len, *lenJSVal);
-    JS_FreeValue(ctx, rs);
     if (ret)
         return JS_EXCEPTION;
     int max_len = 0;
@@ -114,14 +113,14 @@ static JSValue js_poll(JSContext *ctx, JSValueConst this_val,
     ret = poll(pollfds, max_len, timeout);
     if (ret > 0) {
         for (int i = 0; i < ret; i++) {
-            JSValue param = JS_GetPropertyUint32(ctx, argv[0], i);
-            JS_FreeValue(ctx, param);
-            if (JS_IsException(param)) {
-                return param;
+            JSValue _param = JS_GetPropertyUint32(ctx, argv[0], i);
+            JSValueGuard param(ctx, _param);
+            if (param.IsException()) {
+                return JS_EXCEPTION;
             }
-            JSValue revents = JS_NewInt32(ctx, pollfds[i].revents);
-            JS_SetPropertyStr(ctx, param, "revents", revents);
-            JS_FreeValue(ctx, revents);
+            JSValue _revents = JS_NewInt32(ctx, pollfds[i].revents);
+            JSValueGuard revents(ctx, _revents);
+            JS_SetPropertyStr(ctx, *param, "revents", *revents);
         }
     }
     rs = JS_NewInt32(ctx, ret);
@@ -133,8 +132,7 @@ static const JSCFunctionListEntry js_ext_funcs[] = {
     JS_CFUNC_DEF("fnonblock", 1, js_fnonblock),
 };
 
-static int js_ext_init(JSContext *ctx, JSModuleDef *module_def) 
-{
+static int js_ext_init(JSContext *ctx, JSModuleDef *module_def) {
     return JS_SetModuleExportList(ctx, module_def, js_ext_funcs, ARRAYSIZE(js_ext_funcs));
 }
 
